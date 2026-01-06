@@ -36,7 +36,7 @@ python analyze_directory.py ~/Downloads
 
 This will:
 1. Scan everything in Downloads
-2. Generate `Downloads_visualization.html` in the Downloads folder with embedded data
+2. Generate `directory_visualization.html` in the Downloads folder with embedded data
 3. Open it in your browser
 
 ## Output
@@ -64,11 +64,11 @@ The HTML is a standalone file - all data is embedded, so you can share it or ope
 
 - `analyze_directory.py` - The main script
 - `visualize_analysis.html` - HTML template (gets data injected)
-- `*_visualization.html` - Generated HTML files with embedded data (saved in the analyzed directory)
+- `directory_visualization.html` - Generated HTML files with embedded data (saved in the analyzed directory)
 
 ## Why
 
-Got tired of not knowing whats eating my disk space. Made this. It works. ¯\\_(ツ)_/¯
+Got tired of not knowing whats eating my disk space. Made this. It works.
 
 ---
 
