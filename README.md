@@ -26,7 +26,7 @@ Thats it. It'll generate an HTML file in the target directory and open it in you
 
 - `--no-open`: Dont auto-open the browser
 - `--no-progress`: Shut up, no progress messages
-- `--html-template`: Point to a custom HTML template (default: `visualize_analysis.html`)
+
 
 ## Example
 
