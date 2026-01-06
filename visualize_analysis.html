@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directory Analysis Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #16213e;
+            --bg-card: rgba(26, 26, 46, 0.8);
+            --bg-card-hover: rgba(26, 26, 46, 0.95);
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-tertiary: #ec4899;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(148, 163, 184, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+            --gradient-card: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
+            min-height: 100vh;
+            padding: 24px;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 32px 0;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-lg);
+            background: var(--bg-card-hover);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-title {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 2.5em;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .card-subtitle {
+            font-size: 0.9em;
+            color: var(--text-muted);
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.4s ease;
+        }
+
+        .chart-card:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .chart-title {
+            font-size: 1.4em;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: var(--shadow-md);
+            overflow-x: auto;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 14px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            font-size: 1em;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .search-box::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            background: var(--bg-tertiary);
+        }
+
+        .sort-select {
+            padding: 14px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            font-size: 1em;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+
+        .sort-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            background-color: var(--bg-tertiary);
+        }
+
+        .sort-select:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        thead {
+            background: var(--gradient-primary);
+            border-radius: 16px 16px 0 0;
+            overflow: hidden;
+        }
+
+        thead tr:first-child th:first-child {
+            border-top-left-radius: 16px;
+        }
+
+        thead tr:first-child th:last-child {
+            border-top-right-radius: 16px;
+        }
+
+        th {
+            padding: 18px 20px;
+            text-align: left;
+            font-weight: 700;
+            color: white;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            user-select: none;
+            position: relative;
+        }
+
+        th:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        th::after {
+            content: ' ↕';
+            opacity: 0.6;
+            font-size: 0.8em;
+            margin-left: 4px;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            background: transparent;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: rgba(99, 102, 241, 0.08);
+            transform: scale(1.01);
+        }
+
+        td {
+            padding: 16px 20px;
+            color: var(--text-primary);
+        }
+
+        .extension-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: var(--gradient-primary);
+            color: white;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+
+        .extension-badge:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-md);
+        }
+
+        .no-extension {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+        }
+
+        .size-cell {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1.05em;
+        }
+
+        .count-cell {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 80px 50px;
+            color: var(--text-primary);
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid rgba(99, 102, 241, 0.2);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 24px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 12px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-primary);
+            border-radius: 10px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--gradient-primary);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-secondary);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .chart-card {
+                padding: 24px;
+            }
+
+            .table-container {
+                padding: 20px;
+            }
+        }
+
+        /* Smooth fade-in animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card, .chart-card, .table-container {
+            animation: fadeIn 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Directory Analysis</h1>
+            <p id="directory-path">Loading...</p>
+            <p id="timestamp" style="font-size: 0.9em; color: var(--text-muted); margin-top: 8px;"></p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <div>Loading analysis data...</div>
+        </div>
+
+        <div id="content" style="display: none;">
+            <div class="summary-cards">
+                <div class="card">
+                    <div class="card-title">Total Files</div>
+                    <div class="card-value" id="total-files">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Total Size</div>
+                    <div class="card-value" id="total-size">0 GB</div>
+                    <div class="card-subtitle" id="total-size-mb">0 MB</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Unique Extensions</div>
+                    <div class="card-value" id="unique-extensions">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Average File Size</div>
+                    <div class="card-value" id="avg-size">0 MB</div>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-title">Top 15 Extensions by Size</div>
+                    <canvas id="sizeChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Top 15 Extensions by Count</div>
+                    <canvas id="countChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="controls">
+                    <input type="text" id="search" class="search-box" placeholder="🔍 Search extensions...">
+                    <select id="sortBy" class="sort-select">
+                        <option value="size-desc">Sort by Size (Largest First)</option>
+                        <option value="size-asc">Sort by Size (Smallest First)</option>
+                        <option value="count-desc">Sort by Count (Most First)</option>
+                        <option value="count-asc">Sort by Count (Least First)</option>
+                        <option value="name-asc">Sort by Name (A-Z)</option>
+                        <option value="name-desc">Sort by Name (Z-A)</option>
+                    </select>
+                </div>
+                <table id="extensions-table">
+                    <thead>
+                        <tr>
+                            <th>Extension</th>
+                            <th>File Count</th>
+                            <th>Total Size</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let analysisData = null;
+        let filteredData = [];
+
+        // Load JSON file
+        async function loadData() {
+            try {
+                // Get JSON filename from URL parameter or use default
+                const urlParams = new URLSearchParams(window.location.search);
+                const jsonFile = urlParams.get('json') || 'photos_analysis.json';
+                
+                const response = await fetch(jsonFile);
+                if (!response.ok) {
+                    throw new Error(`Failed to load analysis data from ${jsonFile}`);
+                }
+                analysisData = await response.json();
+                displayData();
+            } catch (error) {
+                document.getElementById('loading').innerHTML = 
+                    `<div style="color: #ef4444;">Error: ${error.message}</div>`;
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes >= 1024 * 1024 * 1024) {
+                return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+            } else if (bytes >= 1024 * 1024) {
+                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            } else if (bytes >= 1024) {
+                return (bytes / 1024).toFixed(2) + ' KB';
+            }
+            return bytes + ' B';
+        }
+
+        function formatNumber(num) {
+            return num.toLocaleString();
+        }
+
+        function displayData() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+
+            // Update header
+            document.getElementById('directory-path').textContent = analysisData.directory;
+            
+            // Update timestamp
+            if (analysisData.timestamp) {
+                const timestamp = new Date(analysisData.timestamp);
+                const formattedDate = timestamp.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                document.getElementById('timestamp').textContent = `Analyzed on: ${formattedDate}`;
+            }
+
+            // Update summary cards
+            const summary = analysisData.summary;
+            document.getElementById('total-files').textContent = formatNumber(summary.total_files);
+            document.getElementById('total-size').textContent = summary.total_size_gb.toFixed(2) + ' GB';
+            document.getElementById('total-size-mb').textContent = summary.total_size_mb.toFixed(2) + ' MB';
+            document.getElementById('unique-extensions').textContent = formatNumber(summary.unique_extensions);
+            
+            const avgSizeMB = summary.total_size_mb / summary.total_files;
+            document.getElementById('avg-size').textContent = avgSizeMB.toFixed(2) + ' MB';
+
+            // Prepare data for charts and table
+            filteredData = Object.entries(analysisData.extensions).map(([ext, data]) => ({
+                extension: ext,
+                count: data.count,
+                totalSize: data.total_size,
+                totalSizeMB: data.total_size_mb,
+                totalSizeGB: data.total_size_gb
+            }));
+
+            // Create charts
+            createCharts();
+
+            // Setup search and sort
+            document.getElementById('search').addEventListener('input', handleSearch);
+            document.getElementById('sortBy').addEventListener('change', handleSort);
+            
+            // Display table with default sort (size-desc)
+            handleSort();
+        }
+
+        function createCharts() {
+            // Sort data for charts
+            const sortedBySize = [...filteredData].sort((a, b) => b.totalSize - a.totalSize).slice(0, 15);
+            const sortedByCount = [...filteredData].sort((a, b) => b.count - a.count).slice(0, 15);
+
+            // Size chart
+            const sizeCtx = document.getElementById('sizeChart').getContext('2d');
+            new Chart(sizeCtx, {
+                type: 'bar',
+                data: {
+                    labels: sortedBySize.map(d => d.extension === 'no_extension' ? '(no extension)' : '.' + d.extension),
+                    datasets: [{
+                        label: 'Size (GB)',
+                        data: sortedBySize.map(d => d.totalSizeGB),
+                        backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 15, 35, 0.95)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#e2e8f0',
+                            borderColor: 'rgba(99, 102, 241, 0.5)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const data = sortedBySize[context.dataIndex];
+                                    return [
+                                        `Size: ${data.totalSizeGB.toFixed(2)} GB (${data.totalSizeMB.toFixed(2)} MB)`,
+                                        `Files: ${formatNumber(data.count)}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)',
+                                drawBorder: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)',
+                                drawBorder: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Size (GB)',
+                                color: '#e2e8f0',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Count chart
+            const countCtx = document.getElementById('countChart').getContext('2d');
+            new Chart(countCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: sortedByCount.map(d => d.extension === 'no_extension' ? '(no extension)' : '.' + d.extension),
+                    datasets: [{
+                        label: 'File Count',
+                        data: sortedByCount.map(d => d.count),
+                        backgroundColor: [
+                            'rgba(99, 102, 241, 0.9)',
+                            'rgba(139, 92, 246, 0.9)',
+                            'rgba(236, 72, 153, 0.9)',
+                            'rgba(59, 130, 246, 0.9)',
+                            'rgba(34, 197, 94, 0.9)',
+                            'rgba(251, 146, 60, 0.9)',
+                            'rgba(168, 85, 247, 0.9)',
+                            'rgba(239, 68, 68, 0.9)',
+                            'rgba(14, 165, 233, 0.9)',
+                            'rgba(245, 158, 11, 0.9)',
+                            'rgba(147, 51, 234, 0.9)',
+                            'rgba(20, 184, 166, 0.9)',
+                            'rgba(249, 115, 22, 0.9)',
+                            'rgba(219, 39, 119, 0.9)',
+                            'rgba(99, 102, 241, 0.7)'
+                        ],
+                        borderColor: 'rgba(15, 15, 35, 0.8)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#e2e8f0',
+                                padding: 15,
+                                font: {
+                                    size: 11,
+                                    weight: '500'
+                                },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 15, 35, 0.95)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#e2e8f0',
+                            borderColor: 'rgba(99, 102, 241, 0.5)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const data = sortedByCount[context.dataIndex];
+                                    const percentage = ((data.count / analysisData.summary.total_files) * 100).toFixed(2);
+                                    return [
+                                        `Files: ${formatNumber(data.count)}`,
+                                        `Percentage: ${percentage}%`,
+                                        `Size: ${data.totalSizeGB.toFixed(2)} GB`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayTable(data = filteredData) {
+            const tbody = document.getElementById('table-body');
+            const totalSize = analysisData.summary.total_size;
+
+            tbody.innerHTML = data.map(item => {
+                const percentage = ((item.totalSize / totalSize) * 100).toFixed(2);
+                const extDisplay = item.extension === 'no_extension' ? '(no extension)' : '.' + item.extension;
+                
+                return `
+                    <tr>
+                        <td>
+                            <span class="extension-badge ${item.extension === 'no_extension' ? 'no-extension' : ''}">
+                                ${extDisplay}
+                            </span>
+                        </td>
+                        <td class="count-cell">${formatNumber(item.count)}</td>
+                        <td class="size-cell">
+                            ${item.totalSizeGB.toFixed(2)} GB
+                            <div class="card-subtitle">${item.totalSizeMB.toFixed(2)} MB</div>
+                        </td>
+                        <td>
+                            ${percentage}%
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${percentage}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function handleSearch(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            filteredData = Object.entries(analysisData.extensions)
+                .filter(([ext]) => ext.toLowerCase().includes(searchTerm))
+                .map(([ext, data]) => ({
+                    extension: ext,
+                    count: data.count,
+                    totalSize: data.total_size,
+                    totalSizeMB: data.total_size_mb,
+                    totalSizeGB: data.total_size_gb
+                }));
+            
+            handleSort();
+        }
+
+        function handleSort() {
+            const sortBy = document.getElementById('sortBy').value;
+            
+            filteredData.sort((a, b) => {
+                switch(sortBy) {
+                    case 'size-desc':
+                        return b.totalSize - a.totalSize;
+                    case 'size-asc':
+                        return a.totalSize - b.totalSize;
+                    case 'count-desc':
+                        return b.count - a.count;
+                    case 'count-asc':
+                        return a.count - b.count;
+                    case 'name-asc':
+                        return a.extension.localeCompare(b.extension);
+                    case 'name-desc':
+                        return b.extension.localeCompare(a.extension);
+                    default:
+                        return 0;
+                }
+            });
+            
+            displayTable();
+        }
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>
+
